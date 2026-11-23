@@ -1,0 +1,49 @@
+﻿{% load static %}
+<link rel="stylesheet" href="{% static 'chatbot/chat.css' %}?v=3.1">
+
+<!-- Floating Toggle Button -->
+<button id="hg-chat-toggle" title="HeartGuard AI" aria-label="Open HeartGuard AI Chat">&#10084;&#65039;</button>
+
+<!-- Main Chat Panel -->
+<div id="hg-chat-panel">
+
+  <!-- Header -->
+  <div id="hg-chat-header">
+    <button id="hg-history-btn" title="Chat History" aria-label="Previous Chats">&#9776;</button>
+    <div class="hg-header-avatar">&#129657;</div>
+    <div class="hg-header-info">
+      <div class="hg-header-title">HeartGuard AI</div>
+      <div class="hg-header-sub">Cardiovascular Assistant</div>
+    </div>
+    <div class="hg-header-btns">
+      <button id="hg-new-btn" title="New Chat" aria-label="Start New Chat">&#10010;</button>
+      <button id="hg-close-btn" title="Close" aria-label="Close Chat">&#10005;</button>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="hg-chat-status">Ready</div>
+
+  <!-- History Overlay (Clean, hidden by default, toggled via hamburger button) -->
+  <div id="hg-history-overlay" style="display: none;">
+    <div class="hg-history-header">
+      <span class="hg-history-title">&#128172; Chat History</span>
+      <button id="hg-history-close-btn" title="Close History" aria-label="Close">&#10005;</button>
+    </div>
+    <div id="hg-history-list">
+      <div class="hg-hist-loading">Loading conversations...</div>
+    </div>
+  </div>
+
+  <!-- Chat Messages -->
+  <div id="hg-chat-messages"></div>
+
+  <!-- Input Area -->
+  <div id="hg-chat-input-area">
+    <textarea id="hg-chat-input" placeholder="Ask about your heart health..." rows="1" maxlength="2000"></textarea>
+    <button id="hg-chat-send" title="Send" aria-label="Send Message">&#9658;</button>
+  </div>
+
+</div>
+
+<script src="{% static 'chatbot/chat.js' %}?v=3.1"></script>

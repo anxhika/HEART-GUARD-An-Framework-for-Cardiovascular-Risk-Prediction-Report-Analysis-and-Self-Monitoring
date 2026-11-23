@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'd1v#2-xne%^%s!_&-k0m#3awh+u2$3zx(jyiie+9^9fs3$^bbl'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
@@ -32,6 +35,7 @@ ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
     'predictor',
+    'chatbot',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -130,4 +134,15 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_HOST_USER = ''  #Your email address here
 EMAIL_HOST_PASSWORD = '' #Your email password here
 EMAIL_PORT = 587
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# ── Chatbot / RAG Configuration ───────────────────────────────────────────
+CHATBOT_OLLAMA_URL   = os.getenv("OLLAMA_URL",   "http://localhost:11434")
+CHATBOT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+CHATBOT_OLLAMA_FALLBACK = os.getenv("OLLAMA_FALLBACK_MODEL", "llama3.2:1b")
+CHATBOT_CHROMA_PATH  = str(BASE_DIR / "chatbot" / "chroma_db")
+CHATBOT_CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "heartguard_guidelines")
+CHATBOT_GUIDELINES_DIR = str(BASE_DIR / "chatbot" / "guidelines")
+CHATBOT_MAX_HISTORY  = 10   # number of past messages to send as context
+CHATBOT_MAX_TOKENS   = 512  # max tokens to generate per response
+
