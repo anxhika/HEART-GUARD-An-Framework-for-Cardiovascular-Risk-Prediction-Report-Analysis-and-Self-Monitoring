@@ -1,0 +1,6 @@
+ECHOCARDIOGRAM REPORT
+Date: 2026-05-10
+Left Ventricular Ejection Fraction (LVEF): 55%
+Heart Rate: 72 bpm
+LVEDD: 48 mm
+Conclusion: Normal LV systolic function, no regional wall motion abnormalities.

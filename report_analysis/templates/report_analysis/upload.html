@@ -1,0 +1,284 @@
+{% extends 'base_layout2.html' %}
+{% load static %}
+
+{% block css %}
+<style>
+  .report-page-header {
+    background: linear-gradient(135deg, #1a237e 0%, #0d47a1 50%, #00838f 100%);
+    color: white;
+    padding: 30px 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  .upload-dropzone {
+    border: 3px dashed #90caf9;
+    border-radius: 16px;
+    background-color: #f8fbff;
+    padding: 45px 25px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+  }
+  .upload-dropzone:hover, .upload-dropzone.dragover {
+    border-color: #1976d2;
+    background-color: #e3f2fd;
+    transform: translateY(-2px);
+  }
+  .upload-icon {
+    font-size: 72px;
+    color: #1976d2;
+    margin-bottom: 12px;
+  }
+  .file-badges span {
+    display: inline-block;
+    margin: 4px;
+    padding: 4px 10px;
+    background-color: #e0e0e0;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .selected-file-card {
+    display: none;
+    background: #ffffff;
+    border-left: 6px solid #2e7d32;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  }
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(13, 27, 42, 0.85);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    color: white;
+  }
+  .spinner-text {
+    margin-top: 25px;
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="con">
+  <div style="width: 90%; max-width: 950px; margin: 20px auto;">
+
+    <!-- Page Header -->
+    <div class="report-page-header">
+      <h4 style="margin: 0; font-weight: 600;"><i class="material-icons left" style="font-size: 38px;">biotech</i> Medical Report Analysis</h4>
+      <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 15px;">
+        Upload digital or scanned cardiology reports, lab tests, and ECGs. Our multimodal AI extracts clinical parameters, detects abnormalities, and indexes findings for your AI assistant.
+      </p>
+    </div>
+
+    <!-- Feedback messages -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="card-panel {% if message.tags == 'error' %}red lighten-4 red-text text-darken-4{% else %}green lighten-4 green-text text-darken-4{% endif %}" style="border-radius: 8px; font-weight: 500;">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Upload Card -->
+    <div class="card white hoverable" style="border-radius: 14px; overflow: hidden; padding: 25px 30px;">
+      <div class="row" style="margin-bottom: 0;">
+        <div class="col s12">
+          <h5 class="black-text" style="font-weight: 600; margin-bottom: 20px;">
+            <i class="material-icons left teal-text">cloud_upload</i> Upload Medical Document
+          </h5>
+
+          <form id="report-upload-form" method="POST" enctype="multipart/form-data" action="{% url 'report_analysis:upload' %}">
+            {% csrf_token %}
+
+            <!-- Drag and Drop Zone -->
+            <div id="drop-zone" class="upload-dropzone">
+              <i class="material-icons upload-icon">upload_file</i>
+              <h6 style="font-weight: 600; color: #2c3e50; margin: 0 0 8px 0;">Drag & drop your medical report here, or click to browse</h6>
+              <p class="grey-text" style="margin: 0 0 16px 0; font-size: 13px;">
+                Supports Digital PDF, Scanned PDF, JPG, PNG, and TXT files up to 15 MB
+              </p>
+              <div class="file-badges">
+                <span>PDF (Digital / Scanned)</span>
+                <span>JPG / JPEG</span>
+                <span>PNG (ECG strips)</span>
+                <span>TXT Clinical Notes</span>
+              </div>
+              <!-- Hidden Native File Input -->
+              {{ form.file }}
+            </div>
+
+            <!-- Selected File Feedback -->
+            <div id="selected-card" class="selected-file-card">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <i class="material-icons left green-text" style="font-size: 28px;">check_circle</i>
+                  <strong id="file-name-display" style="font-size: 15px;">document.pdf</strong>
+                  <span id="file-size-display" class="grey-text" style="margin-left: 10px; font-size: 13px;">(0 KB)</span>
+                </div>
+                <button type="button" id="remove-file-btn" class="btn-flat red-text" style="padding: 0 8px;">
+                  <i class="material-icons">close</i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Optional Manual Type Selector -->
+            <div class="row" style="margin-top: 30px;">
+              <div class="col s12 m8">
+                <label for="id_manual_report_type" style="font-size: 14px; font-weight: 600; color: #37474f;">
+                  Report Type (Optional Override)
+                </label>
+                <div style="margin-top: 6px;">
+                  {{ form.manual_report_type }}
+                </div>
+                <span class="helper-text grey-text" style="font-size: 12px;">
+                  Leave as "Auto-Detect" to let our clinical AI classifier automatically identify Echo, ECG, Blood Test, MRI, CT, Stress Test, or Angiography.
+                </span>
+              </div>
+            </div>
+
+            <div class="divider" style="margin: 25px 0;"></div>
+
+            <!-- Action buttons -->
+            <div class="row" style="margin-bottom: 0;">
+              <div class="col s12" style="display: flex; justify-content: space-between; align-items: center;">
+                <a href="{% url 'report_analysis:history' %}" class="btn-flat grey-text text-darken-2 waves-effect">
+                  <i class="material-icons left">arrow_back</i> View Report History
+                </a>
+                <button type="submit" id="submit-btn" class="btn-large waves-effect waves-light black white-text" style="border-radius: 8px; font-weight: 600; padding: 0 35px;" disabled>
+                  <i class="material-icons right">analytics</i> Analyze Report
+                </button>
+              </div>
+            </div>
+
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Supported Modalities Card -->
+    <div class="card-panel white" style="border-radius: 12px; margin-top: 25px;">
+      <h6 style="font-weight: 600; color: #263238; margin-bottom: 12px;">
+        <i class="material-icons left blue-text">verified</i> Integrated Cardiology AI Models
+      </h6>
+      <div class="row" style="margin-bottom: 0; font-size: 13px; color: #546e7a;">
+        <div class="col s12 m4" style="margin-bottom: 10px;">
+          <strong>• Echocardiogram (Echo):</strong> HeartDX-LM adapter extracts ejection fraction (LVEF), ventricular diameters, and wall motion abnormalities.
+        </div>
+        <div class="col s12 m4" style="margin-bottom: 10px;">
+          <strong>• Electrocardiogram (ECG):</strong> PULSE-7B adapter preserves waveform rhythm strips and extracts intervals (PR, QRS, QTc), rhythms, and ST elevation.
+        </div>
+        <div class="col s12 m4" style="margin-bottom: 10px;">
+          <strong>• Blood, MRI, CT & Angio:</strong> Qwen 2.5-7B extracts cardiac biomarkers (Troponin, Lipid profile, BNP), calcium scores, and coronary stenosis.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Fullscreen Processing / Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+  <div class="preloader-wrapper big active">
+    <div class="spinner-layer spinner-blue-only">
+      <div class="circle-clipper left"><div class="circle"></div></div>
+      <div class="gap-patch"><div class="circle"></div></div>
+      <div class="circle-clipper right"><div class="circle"></div></div>
+    </div>
+  </div>
+  <div class="spinner-text">
+    <div style="font-size: 22px; margin-bottom: 8px;">Analyzing Medical Report...</div>
+    <div class="grey-text text-lighten-2" style="font-size: 14px; max-width: 480px;">
+      Performing OCR extraction, clinical modality classification, and specialist cardiovascular AI analysis. Please wait a moment.
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('report_file_input');
+    const selectedCard = document.getElementById('selected-card');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    const fileSizeDisplay = document.getElementById('file-size-display');
+    const removeFileBtn = document.getElementById('remove-file-btn');
+    const submitBtn = document.getElementById('submit-btn');
+    const uploadForm = document.getElementById('report-upload-form');
+    const loadingOverlay = document.getElementById('loading-overlay');
+
+    // Make dropzone click trigger file input
+    dropZone.addEventListener('click', function(e) {
+      if (e.target !== fileInput) {
+        fileInput.click();
+      }
+    });
+
+    // Drag and drop event handlers
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('dragover');
+      }, false);
+    });
+
+    dropZone.addEventListener('drop', function(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+      if (files.length > 0) {
+        fileInput.files = files;
+        handleFileSelection(files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', function() {
+      if (fileInput.files.length > 0) {
+        handleFileSelection(fileInput.files[0]);
+      }
+    });
+
+    function handleFileSelection(file) {
+      fileNameDisplay.textContent = file.name;
+      const sizeKB = (file.size / 1024).toFixed(1);
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      fileSizeDisplay.textContent = file.size > 1048576 ? `(${sizeMB} MB)` : `(${sizeKB} KB)`;
+      selectedCard.style.display = 'block';
+      submitBtn.removeAttribute('disabled');
+    }
+
+    removeFileBtn.addEventListener('click', function() {
+      fileInput.value = '';
+      selectedCard.style.display = 'none';
+      submitBtn.setAttribute('disabled', 'disabled');
+    });
+
+    uploadForm.addEventListener('submit', function() {
+      if (fileInput.files.length > 0) {
+        loadingOverlay.style.display = 'flex';
+      }
+    });
+  });
+</script>
+{% endblock %}
