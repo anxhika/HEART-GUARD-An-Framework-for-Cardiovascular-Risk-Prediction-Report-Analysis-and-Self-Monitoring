@@ -1,0 +1,364 @@
+{% extends 'base_layout2.html' %}
+{% load static %}
+
+{% block css %}
+<style>
+  .detail-header {
+    background: linear-gradient(135deg, #1a237e 0%, #0d47a1 50%, #00838f 100%);
+    color: white;
+    padding: 28px 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  .param-card {
+    border-radius: 10px;
+    background: white;
+    padding: 18px 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border-left: 5px solid #9e9e9e;
+    transition: all 0.2s ease;
+  }
+  .param-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .param-card.status-normal { border-left-color: #2e7d32; }
+  .param-card.status-abnormal { border-left-color: #f57c00; }
+  .param-card.status-critical { border-left-color: #c62828; }
+  .param-card.status-uncertain { border-left-color: #fbc02d; }
+
+  .flag-badge {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  .flag-badge.normal { background: #e8f5e9; color: #2e7d32; }
+  .flag-badge.abnormal, .flag-badge.warning { background: #fff3e0; color: #e65100; }
+  .flag-badge.critical { background: #ffebee; color: #c62828; }
+  .flag-badge.uncertain { background: #fffde7; color: #f57f17; }
+
+  .review-banner {
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+  }
+  .review-banner.critical {
+    background-color: #ffebee;
+    border: 1px solid #ffcdd2;
+    color: #b71c1c;
+  }
+  .review-banner.abnormal {
+    background-color: #fff3e0;
+    border: 1px solid #ffe0b2;
+    color: #e65100;
+  }
+  .review-banner.normal {
+    background-color: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    color: #2e7d32;
+  }
+
+  .ecg-viewer {
+    background: #000;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    margin: 15px 0;
+  }
+  .ecg-viewer img {
+    max-width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+
+  .disclaimer-box {
+    background-color: #fff8e1;
+    border-left: 5px solid #ffa000;
+    padding: 14px 18px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #5d4037;
+    margin-top: 30px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="con">
+  <div style="width: 92%; max-width: 1050px; margin: 20px auto;">
+
+    <!-- Breadcrumb -->
+    <div style="margin-bottom: 15px;">
+      <a href="{% url 'report_analysis:history' %}" class="grey-text text-darken-2" style="font-size: 14px; font-weight: 500;">
+        <i class="material-icons left" style="font-size: 18px; margin-right: 4px;">arrow_back</i> Back to Reports
+      </a>
+    </div>
+
+    <!-- Feedback messages -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="card-panel {% if message.tags == 'error' %}red lighten-4 red-text text-darken-4{% else %}green lighten-4 green-text text-darken-4{% endif %}" style="border-radius: 8px; font-weight: 500;">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Report Header -->
+    <div class="detail-header">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+        <div>
+          <span style="background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase;">
+            {{ report.get_report_type_display }}
+          </span>
+          <h4 style="margin: 8px 0 4px 0; font-weight: 600;">
+            {{ report.original_filename|default:"Medical Report" }}
+          </h4>
+          <div style="opacity: 0.9; font-size: 13px;">
+            Uploaded on {{ report.created_at|date:"F d, Y at h:i A" }} &bull;
+            Status: <strong>{{ report.get_status_display }}</strong> &bull;
+            Model: <strong>{{ report.model_used|default:"AI Extractor" }}</strong>
+          </div>
+        </div>
+
+        <div style="margin-top: 10px;">
+          {% if report.file %}
+            <a href="{{ report.file.url }}" target="_blank" class="btn white black-text waves-effect waves-light" style="border-radius: 8px; font-weight: 600; margin-right: 8px;">
+              <i class="material-icons left blue-text">file_download</i> View Original
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Processing Error Alert if Failed -->
+    {% if report.status == 'failed' %}
+      <div class="card-panel red lighten-4 red-text text-darken-4" style="border-radius: 10px;">
+        <h5 style="margin-top: 0;"><i class="material-icons left">error_outline</i> Analysis Incomplete</h5>
+        <p>{{ report.error_message|default:"An error occurred while analyzing this medical report." }}</p>
+        <p style="font-size: 13px;">You can retry by changing or confirming the report type below.</p>
+      </div>
+    {% endif %}
+
+    <!-- Clinical Review Status Banner -->
+    {% if report.status == 'completed' %}
+      {% if report.has_critical_findings %}
+        <div class="review-banner critical">
+          <i class="material-icons left" style="font-size: 32px; margin-right: 15px;">warning</i>
+          <div>
+            <strong style="font-size: 16px;">Critical Clinical Findings Flagged</strong>
+            <div style="font-size: 13px; margin-top: 2px;">
+              One or more parameters (e.g. elevated troponin, critical LVEF reduction, or severe stenosis) require immediate professional cardiology evaluation.
+            </div>
+          </div>
+        </div>
+      {% elif report.has_abnormal_findings %}
+        <div class="review-banner abnormal">
+          <i class="material-icons left" style="font-size: 32px; margin-right: 15px;">info</i>
+          <div>
+            <strong style="font-size: 16px;">Out-of-Range Clinical Values Detected</strong>
+            <div style="font-size: 13px; margin-top: 2px;">
+              Certain parameters deviate from standard physiological reference intervals. Review the highlighted flags with your physician.
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="review-banner normal">
+          <i class="material-icons left" style="font-size: 32px; margin-right: 15px;">check_circle</i>
+          <div>
+            <strong style="font-size: 16px;">Within Standard Physiological Limits</strong>
+            <div style="font-size: 13px; margin-top: 2px;">
+              All extracted parameters match expected clinical baseline reference intervals.
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+
+    <!-- Patient-Friendly Summary Card -->
+    {% if report.findings_summary %}
+      <div class="card white hoverable" style="border-radius: 12px; margin-bottom: 25px;">
+        <div style="padding: 20px 25px; border-bottom: 1px solid #eeeeee;">
+          <h5 style="margin: 0; font-weight: 600; font-size: 18px;" class="black-text">
+            <i class="material-icons left blue-text">summarize</i> Patient-Friendly Clinical Summary
+          </h5>
+        </div>
+        <div style="padding: 20px 25px; font-size: 15px; line-height: 1.6; color: #37474f;">
+          {{ report.findings_summary }}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Preserved ECG Image Viewer (Multimodal) -->
+    {% if report.ecg_image %}
+      <div class="card white hoverable" style="border-radius: 12px; margin-bottom: 25px;">
+        <div style="padding: 20px 25px; border-bottom: 1px solid #eeeeee; display: flex; justify-content: space-between; align-items: center;">
+          <h5 style="margin: 0; font-weight: 600; font-size: 18px;" class="black-text">
+            <i class="material-icons left red-text">monitor_heart</i> Preserved ECG Waveform Image
+          </h5>
+          <a href="{{ report.ecg_image.url }}" target="_blank" class="btn-small flat grey lighten-3 black-text">Full Resolution</a>
+        </div>
+        <div style="padding: 20px 25px;">
+          <div class="ecg-viewer">
+            <img src="{{ report.ecg_image.url }}" alt="Preserved ECG Waveform">
+          </div>
+          <div class="grey-text" style="font-size: 12px; text-align: center;">
+            Original ECG strip preserved for multimodal review and PULSE-7B clinical indexing.
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Specific Clinical Review Flags -->
+    {% if clinical_flags %}
+      <div class="card white hoverable" style="border-radius: 12px; margin-bottom: 25px;">
+        <div style="padding: 20px 25px; border-bottom: 1px solid #eeeeee;">
+          <h5 style="margin: 0; font-weight: 600; font-size: 18px;" class="red-text text-darken-3">
+            <i class="material-icons left red-text">flag</i> Clinical Review Flags ({{ clinical_flags|length }})
+          </h5>
+        </div>
+        <div style="padding: 15px 25px;">
+          {% for flag in clinical_flags %}
+            <div style="padding: 12px 14px; margin-bottom: 10px; border-radius: 8px; background-color: {% if flag.severity == 'critical' %}#ffebee{% else %}#fff8e1{% endif %}; border-left: 4px solid {% if flag.severity == 'critical' %}#c62828{% else %}#f57c00{% endif %};">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="color: #263238; font-size: 14px;">{{ flag.parameter }}</strong>
+                <span class="flag-badge {{ flag.severity }}">{{ flag.severity }}</span>
+              </div>
+              <div style="margin-top: 4px; font-size: 13px; color: #455a64;">
+                <strong>Observed:</strong> {{ flag.value }} &bull; <strong>Reference:</strong> {{ flag.reference }}
+              </div>
+              <div style="margin-top: 4px; font-size: 13px; color: #37474f;">
+                {{ flag.message }}
+              </div>
+              {% if flag.guideline %}
+                <div class="grey-text" style="margin-top: 4px; font-size: 11px;">
+                  <em>Guideline: {{ flag.guideline }}</em>
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Extracted Clinical Parameters Grid -->
+    <div class="card white hoverable" style="border-radius: 12px; margin-bottom: 25px;">
+      <div style="padding: 20px 25px; border-bottom: 1px solid #eeeeee; display: flex; justify-content: space-between; align-items: center;">
+        <h5 style="margin: 0; font-weight: 600; font-size: 18px;" class="black-text">
+          <i class="material-icons left teal-text">table_chart</i> Extracted Clinical Parameters ({{ findings|length }})
+        </h5>
+        <span class="grey-text" style="font-size: 13px;">Verified against clinical intervals</span>
+      </div>
+
+      <div style="padding: 20px 25px;">
+        {% if findings %}
+          <div class="row" style="margin-bottom: 0;">
+            {% for item in findings %}
+              <div class="col s12 m6">
+                <div class="param-card status-{{ item.status }}">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="font-weight: 600; color: #263238; font-size: 14px; max-width: 75%;">
+                      {{ item.parameter_name }}
+                    </div>
+                    <span class="flag-badge {{ item.status }}">
+                      {{ item.flag|default:item.status }}
+                    </span>
+                  </div>
+
+                  <div style="margin-top: 10px; display: flex; align-items: baseline;">
+                    <span style="font-size: 22px; font-weight: 700; color: #0d47a1;">
+                      {{ item.value }}
+                    </span>
+                  </div>
+
+                  {% if item.reference_range %}
+                    <div class="grey-text text-darken-1" style="font-size: 12px; margin-top: 4px;">
+                      <strong>Normal Reference:</strong> {{ item.reference_range }}
+                    </div>
+                  {% endif %}
+
+                  {% if item.clinical_significance %}
+                    <div style="margin-top: 8px; font-size: 12px; color: #455a64; background: #f5f5f5; padding: 6px 10px; border-radius: 6px;">
+                      {{ item.clinical_significance }}
+                    </div>
+                  {% endif %}
+
+                  {% if item.evidence %}
+                    <div class="grey-text" style="margin-top: 6px; font-size: 11px;">
+                      <em>Evidence quote: "{{ item.evidence }}"</em>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="grey-text" style="text-align: center; margin: 20px 0;">No individual parameters were extracted from this report text.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Manual Re-classify / Reprocess Form -->
+    <div class="card white hoverable" style="border-radius: 12px; margin-bottom: 25px;">
+      <div style="padding: 20px 25px; border-bottom: 1px solid #eeeeee;">
+        <h5 style="margin: 0; font-weight: 600; font-size: 17px;" class="black-text">
+          <i class="material-icons left grey-text text-darken-2">settings_backup_restore</i> Report Modality & Reprocess
+        </h5>
+      </div>
+      <div style="padding: 20px 25px;">
+        <p class="grey-text text-darken-1" style="font-size: 13px; margin-top: 0;">
+          Automatically classified as <strong>{{ report.detected_type|default:"Other" }}</strong>.
+          If this classification was incorrect, select the true report type below to re-run the specialized AI adapter:
+        </p>
+        <form method="POST" action="{% url 'report_analysis:reprocess' report.pk %}">
+          {% csrf_token %}
+          <div class="row" style="margin-bottom: 0; display: flex; align-items: flex-end; flex-wrap: wrap;">
+            <div class="col s12 m6">
+              <label style="font-weight: 600;">Correct Report Modality</label>
+              {{ update_form.report_type }}
+            </div>
+            <div class="col s12 m6" style="margin-top: 15px;">
+              <button type="submit" class="btn black white-text waves-effect waves-light" style="border-radius: 6px;">
+                <i class="material-icons left">refresh</i> Re-Analyze Report
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Extracted Text Accordion/Preview -->
+    <ul class="collapsible z-depth-1" style="border-radius: 10px; border: none; overflow: hidden; margin-bottom: 25px;">
+      <li>
+        <div class="collapsible-header grey lighten-4" style="font-weight: 600; color: #37474f;">
+          <i class="material-icons">text_snippet</i> View Extracted Text Content (PyMuPDF / OCR)
+        </div>
+        <div class="collapsible-body white">
+          <pre style="white-space: pre-wrap; font-family: monospace; font-size: 12px; color: #263238; max-height: 400px; overflow-y: auto; background: #fafafa; padding: 15px; border-radius: 6px;">{{ report.extracted_text|default:"No text available." }}</pre>
+        </div>
+      </li>
+    </ul>
+
+    <!-- Regulatory Medical Disclaimer -->
+    <div class="disclaimer-box">
+      <strong><i class="material-icons left" style="font-size: 18px;">info</i> Medical Disclaimer:</strong>
+      This report analysis is generated by automated AI information extraction and algorithmic clinical reference screening. It is designed for patient awareness and informational reference only. It does not provide medical diagnosis, nor does it recommend or prescribe treatments or medications. Consult your physician or cardiologist for complete diagnosis and clinical care.
+    </div>
+
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var elems = document.querySelectorAll('.collapsible');
+    M.Collapsible.init(elems);
+  });
+</script>
+{% endblock %}

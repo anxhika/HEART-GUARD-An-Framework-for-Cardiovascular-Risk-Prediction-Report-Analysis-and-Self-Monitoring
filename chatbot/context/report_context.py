@@ -1,36 +1,71 @@
 """
-Stub for integrating with the report_analysis Django app.
-Uses try/except ImportError so the chatbot never crashes
-if report_analysis has not been installed yet.
+Integration bridge between HeartGuard RAG Chatbot and the report_analysis Django app.
+Provides user-isolated medical report context for the cardiovascular chatbot.
 """
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def build_report_context(user) -> str:
     """
-    Returns a plain-text summary of the user's latest report analysis.
-    Returns empty string if the report_analysis module does not exist
-    or if the user has no reports.
+    Returns a plain-text summary of the user's latest medical reports and clinical findings.
+    Strictly isolated to reports owned by `user`.
+    Returns empty string if the user has no reports or if report_analysis fails.
     """
+    if not user or not user.is_authenticated:
+        return ""
+
     try:
-        # This import will succeed once report_analysis is installed.
-        # Expected model: ReportAnalysis with fields like:
-        #   user (FK), created_at, extracted_data (JSONField), summary (TextField)
-        from report_analysis.models import ReportAnalysis  # noqa: F401
-        reports = ReportAnalysis.objects.filter(user=user).order_by('-created_at')[:1]
+        from report_analysis.models import MedicalReport
+
+        # Retrieve up to 3 most recent reports for the user
+        reports = MedicalReport.objects.filter(
+            user=user,
+            status='completed'
+        ).order_by('-created_at')[:3]
+
         if not reports.exists():
             return ""
-        report = reports.first()
-        # Attempt to build a summary from the extracted JSON data
-        data = report.extracted_data if hasattr(report, 'extracted_data') else {}
-        lines = ["The user's latest medical report analysis extracted the following cardiovascular parameters:"]
-        for key, value in data.items():
-            lines.append(f"  - {key}: {value}")
-        if hasattr(report, 'summary') and report.summary:
-            lines.append(f"Clinical Summary: {report.summary}")
-        return "\n".join(lines)
+
+        context_lines = [
+            f"The patient has {reports.count()} recent medical report(s) on file:"
+        ]
+
+        for idx, report in enumerate(reports, start=1):
+            date_str = report.created_at.strftime('%Y-%m-%d')
+            context_lines.append(
+                f"\n[Report {idx}]: {report.get_report_type_display()} ({report.original_filename or 'File'}), Date: {date_str}"
+            )
+            if report.findings_summary:
+                context_lines.append(f"  Summary: {report.findings_summary}")
+
+            # Include key extracted parameters
+            findings = report.findings.all()[:10]
+            if findings.exists():
+                param_strs = []
+                for f in findings:
+                    status_flag = f" [{f.flag}]" if f.flag and f.flag != "NORMAL" else ""
+                    param_strs.append(f"{f.parameter_name}: {f.value}{status_flag}")
+                context_lines.append("  Key Parameters: " + "; ".join(param_strs))
+
+            # Include clinical review flags if any
+            if report.clinical_flags:
+                flag_messages = []
+                for flag in report.clinical_flags:
+                    if isinstance(flag, dict):
+                        msg = flag.get('message') or f"{flag.get('parameter')}: {flag.get('value')}"
+                        flag_messages.append(msg)
+                    elif isinstance(flag, str):
+                        flag_messages.append(flag)
+                if flag_messages:
+                    context_lines.append("  Clinical Review Flags: " + " | ".join(flag_messages[:4]))
+
+        return "\n".join(context_lines)
+
     except ImportError:
-        # report_analysis app not yet installed — this is expected during development
+        logger.debug("report_analysis module not found when building report context.")
         return ""
-    except Exception:
-        # Fail silently — the chatbot should work even if report context fails
+    except Exception as e:
+        logger.warning(f"Error building report context for user {user}: {e}")
         return ""

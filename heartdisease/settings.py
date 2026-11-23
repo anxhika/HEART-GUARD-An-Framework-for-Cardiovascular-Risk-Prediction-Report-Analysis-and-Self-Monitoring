@@ -36,6 +36,7 @@ ALLOWED_HOSTS = ["*"]
 INSTALLED_APPS = [
     'predictor',
     'chatbot',
+    'report_analysis',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -136,6 +137,12 @@ EMAIL_HOST_PASSWORD = '' #Your email password here
 EMAIL_PORT = 587
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Media files (Uploaded medical reports and ECG images)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 # ── Chatbot / RAG Configuration ───────────────────────────────────────────
 CHATBOT_OLLAMA_URL   = os.getenv("OLLAMA_URL",   "http://localhost:11434")
 CHATBOT_OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
@@ -145,4 +152,16 @@ CHATBOT_CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION", "heartguard_guideline
 CHATBOT_GUIDELINES_DIR = str(BASE_DIR / "chatbot" / "guidelines")
 CHATBOT_MAX_HISTORY  = 10   # number of past messages to send as context
 CHATBOT_MAX_TOKENS   = 512  # max tokens to generate per response
+
+# ── Report Analysis Configuration ─────────────────────────────────────────
+REPORT_ANALYSIS_OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+MODEL_ECHO_ADAPTER         = os.getenv("MODEL_ECHO_ADAPTER", "heartdx-lm")
+MODEL_ECG_ADAPTER          = os.getenv("MODEL_ECG_ADAPTER", "pulse-7b")
+MODEL_GENERAL_ADAPTER      = os.getenv("MODEL_GENERAL_ADAPTER", "qwen2.5:7b")
+REPORT_FALLBACK_MODEL      = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+TESSERACT_CMD              = os.getenv("TESSERACT_CMD", r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+TESSDATA_PREFIX            = os.getenv("TESSDATA_PREFIX", str(BASE_DIR / 'tessdata'))
+os.environ["TESSDATA_PREFIX"] = TESSDATA_PREFIX
+MAX_UPLOAD_SIZE_MB         = int(os.getenv("MAX_UPLOAD_SIZE_MB", 15))
+
 
